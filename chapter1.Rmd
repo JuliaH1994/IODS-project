@@ -2,3 +2,7 @@
 # About the project
 
 *Write a short description about the course and add a link to your GitHub repository here. This is an R Markdown (.Rmd) file so you can use R Markdown syntax.*
+
+*I have a very tight schedule at the moment, and I am not sure whether I will have time to complete the exercises on time. I will try my best, though.*
+
+*Link: https://github.com/JuliaH1994/IODS-project*
