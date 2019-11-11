@@ -1,7 +1,54 @@
-# Insert chapter 2 title here
+# Chapter 2: Regression and model validation
 
-*Describe the work you have done this week and summarize your learning.*
+## Exercises about regression and model validation
 
-- Describe your work and results clearly. 
-- Assume the reader has an introductory course level understanding of writing and reading R code as well as statistical methods.
-- Assume the reader has no previous knowledge of your data or the more advanced methods you are using.
+**1**
+
+```{r}
+data <- read.csv("Z:\\IODS\\IODS\\data\\learning2014.csv")
+data <- data[,2:8]
+head(data)
+dim(data)
+str(data)
+```
+The data contains 7 variables and 166 observations.
+The variables are gender, age, attitude, deep, stra, surf and points. Deep, stra and surf are combinations of several variables related to deep, surface and strategic learning.
+
+**2**
+```{r}
+summary(data)
+
+library(GGally)
+library(ggplot2)
+p <- ggpairs(data, mapping = aes(), lower = list(combo = wrap("facethist", bins = 20)))
+p
+```
+
+There are 110 females and 56 males in the data set. Age ranges from 17 to 55 with the mean age at 25.51. Attitude varies from 14 to 50, deep, stra, and surf vary from approx. 1 to 5, and points varies from 7 to 33. The strongest correlation is found between points and attutude. 
+
+**3**
+```{r}
+lm1 <- lm(Points ~ Attitude + stra + surf, data=data)
+summary(lm1)
+```
+Attitude is the only significant variable.
+
+```{r}
+lm2 <- lm(Points ~ Attitude, data=data)
+summary(lm2)
+```
+
+**4**
+When attitude increases with one unit, points increases with 0.35.
+The model explains 19% of the variation.
+
+**5**
+```{r}
+plot(lm2, which = c(1, 2, 5), par(mfrow = c(1,2)))
+```
+
+Residuals should be normally distrbuted with constant variance.
+
+Residuals vs. Fitted values: Close to constant variation of residual errors. (No pattern should be observed)
+QQ-plot: Normality assumption of errors is ok! (Should fit the line)
+Leverage: OK! (a measure of how far an observation on the predictor variable from the mean of the predictor variable)
