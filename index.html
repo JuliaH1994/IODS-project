@@ -701,7 +701,7 @@ loss_func(class = data$high_use, prob = data$probability)</code></pre>
 <pre class="r"><code>library(boot)
 cv &lt;- cv.glm(data, cost = loss_func, glmfit = m, K = 10)
 cv$delta[1]</code></pre>
-<pre><code>## [1] 0.2591623</code></pre>
+<pre><code>## [1] 0.2513089</code></pre>
 <p>No.</p>
 <hr />
 </div>
