@@ -1,0 +1,177 @@
+# Chapter 3: Logistic regression
+
+## Exercises about logistic regression ## 
+
+**1-2 Create a new R Markdown file and Read the joined student alcohol consumption data**
+```{r}
+setwd("Z:\\IODS\\IODS\\data")
+data <- read.csv("alc.csv",sep=",")
+str(data)
+```
+The dataset includes information about student achievement in secondary education of two Potugese schools. It has 382 observations and 35 variables. The variables are student grades, and demographic, social and school related features.
+
+The dataset is a combination of two datasets: Mathematics (mat) and Portugese language (por). 
+
+**3 Personal hypothesis**
+
+I chose the following four variables to study their relationships with high/low alcohol consumption:
+
+sex - student's sex (binary: 'F' - female or 'M' - male)
+Males are more likely to have high alcohol consumption.
+
+Pstatus - parent's cohabitation status (binary: 'T' - living together or 'A' - apart)
+Students with parent's living apart are more likely to have high alcohol consumption.
+
+studytime - weekly study time (numeric: 1 - <2 hours, 2 - 2 to 5 hours, 3 - 5 to 10 hours, or 4 - >10 hours)
+Students with less study time are more likely to have high alcohol consumption.
+
+absences - number of school absences (numeric: from 0 to 93)
+Students with high number of school absences are more likely to have high alcohol consumption.
+
+**4 The distributions of the chosen variables**
+```{r}
+library(ggplot2)
+g1 <- ggplot(data, aes(x = high_use))
+g1 + geom_bar()
+```
+
+Less then one out of three students have high alcohol consumption.
+
+```{r}
+g2 <- ggplot(data, aes(x = sex))
+g2 + geom_bar()
+```
+
+There are rougly the same numeber of boys and girls, only slihgly more girls.
+
+```{r}
+g3 <- ggplot(data, aes(x = Pstatus))
+g3 + geom_bar()
+```
+
+Most students have parents living together.
+
+```{r}
+g4 <- ggplot(data, aes(x = studytime))
+g4 + geom_bar()
+```
+
+Most students use 2 to 5 hours per week to study (2). Only a small number studies more than 10 hours (4)
+
+```{r}
+g5 <- ggplot(data, aes(x = absences))
+g5 + geom_bar()
+```
+
+It is quite common to have 0-4 school absences, but only a few has more than 10 absences.
+
+```{r}
+prop.table(table(data$sex,data$high_use),1)
+```
+
+39 percent of boys have a high alcohol consumption compared to 21 percent of girls.
+
+```{r}
+prop.table(table(data$Pstatus,data$high_use),1)
+```
+
+Slightly more (32 percent) students with parents living apart have high alcohol consumption compared to students with parents living together (30 percent).
+
+```{r}
+prop.table(table(data$studytime,data$high_use),1)
+```
+
+The group with the shortest study time has the highest proportion (42 percent) of high alcohol consumption, and the proportion decreases with study time (below 15 percent in group 3 and 4).
+
+```{r}
+boxplot(data$absences ~ data$high_use)
+```
+
+Those with high alcohol consumption seem to have more absences.
+
+My hyphothesis were 
+1) Males are more likely to have high alcohol consumption.
+2) Students with parent's living apart are more likely to have high alcohol consumption.
+3) Students with less study time are more likely to have high alcohol consumption.
+4) Students with high number of school absences are more likely to have high alcohol consumption.
+
+There seems to be evidence for 1), 3) and 4), but not for 2).
+
+**5 Logistic regression**
+```{r}
+library(dplyr)
+m <- glm(high_use ~ sex + Pstatus + studytime + absences, data, family = "binomial")
+
+summary(m)
+```
+
+All variables but Pstatus are statistically signigicant. We find support of sex, studytime, and absences being related to high alcohol consumption.
+
+```{r}
+OR <- coef(m) %>% exp
+CI <- confint(m) %>% exp
+cbind(OR,CI)
+```
+
+Boys are 2.2 times as likely (CI 1.4;3.6) as girls to have high alcohol consumption, (holding the other variables constant).
+
+Study time and high alcohol comsumption are negatively related: the more study time, the less likely of high alcohol consumption. 
+When study time increases with one unit, having high alcohol consumption becomes 33 percent (1-0.67) less likely, (holding the other variables constant).
+
+
+Absences and high alcohol comsumption are positively related: the more absencses, the more likely of high alcohol consumption.
+When absences increases with one unit, the odds of having high alcohol consumption increases with 9 percent (CI 5%;15%), (holding the other variables constant).
+
+Once again, the findings support hypothesis 1), 3) and 4), but not 2).
+
+**6 Explore the predictive power of the model**
+
+Fit the same model, but drop the non significant variable Pstatus.
+
+```{r}
+m <- glm(high_use ~ sex + studytime + absences, data, family = "binomial")
+
+probabilities <- predict(m, type = "response")
+
+data <- mutate(data, probability = probabilities)
+data <- mutate(data, prediction = probability > 0.5)
+
+table(high_use = data$high_use, prediction = data$prediction)
+```
+
+The model correcly predicted 258 to be FALSE when they actually were FALSE, and 26 to be TRUE when they actually were TRUE.
+The model incorrectly predicted 10 to be TRUE when they actually were FALSE, and 88 to be FALSE when they actually were TRUE.
+
+```{r}
+g <- ggplot(data, aes(x = high_use, y = probability))
+g+geom_point()
+```
+
+The model predicts most of the FALSE values correctly, but fails to predict a large proportion of the TRUE values.
+
+```{r}
+loss_func <- function(class, prob) {
+  n_wrong <- abs(class - prob) > 0.5
+  mean(n_wrong)
+}
+
+loss_func(class = data$high_use, prob = data$probability)
+```
+
+26 percent were predicted incorrectly. This could also be read from the previous table (88+10)/(258+10+88+26).
+
+
+```{r}
+loss_func(class = data$high_use, prob = 0)
+```
+
+Define the probability of high_use as zero for each individual. 30 percent were predicted incorrectly. The model preforms better (but not much better!) than simply giving all probability 0.
+
+**7**
+```{r}
+library(boot)
+cv <- cv.glm(data, cost = loss_func, glmfit = m, K = 10)
+cv$delta[1]
+```
+
+No.
