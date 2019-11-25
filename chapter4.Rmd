@@ -212,3 +212,4 @@ pairs(boston_scaled, col = km$cluster)
 ```
 
 
+
