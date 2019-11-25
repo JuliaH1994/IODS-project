@@ -1,0 +1,214 @@
+# Chapter 4: Clustering and classification
+
+The Exercises in chapter 4 is about clustering and classification.
+
+**1-2 Load the Boston data from the MASS package**
+
+```{r}
+library(MASS)
+data("Boston")
+str(Boston)
+dim(Boston)
+```
+
+The Boston data set includes information about Housing Values in Suburbs of Boston. It has 506 observations and 14 variables. The Boston data set contains the following variables:
+
+**crim:** 
+per capita crime rate by town.
+
+**zn:**
+proportion of residential land zoned for lots over 25,000 sq.ft.
+
+**indus:**
+proportion of non-retail business acres per town.
+
+**chas:**
+Charles River dummy variable (= 1 if tract bounds river; 0 otherwise).
+
+**nox:**
+nitrogen oxides concentration (parts per 10 million).
+
+**rm:**
+average number of rooms per dwelling.
+
+**age:**
+proportion of owner-occupied units built prior to 1940.
+
+**dis:**
+weighted mean of distances to five Boston employment centres.
+
+**rad:**
+index of accessibility to radial highways.
+
+**tax:**
+full-value property-tax rate per \$10,000.
+
+**ptratio:**
+pupil-teacher ratio by town.
+
+**black:**
+1000(Bk - 0.63)^2 where Bk is the proportion of blacks by town.
+
+**lstat:**
+lower status of the population (percent).
+
+**medv:**
+median value of owner-occupied homes in \$1000s.
+
+**3 A graphical overview of the data**
+
+```{r}
+library(tidyr) 
+library(dplyr) 
+library(ggplot2)
+
+summary(Boston)
+
+Boston %>% gather() %>% ggplot(aes(value)) + facet_wrap(~ key, scales = "free") + geom_bar()
+```
+
+
+The mean of the variables varies greatly: from 0.07 for "chas" to 408.2 for "tax". The variation also varies among the variables: "chas" is Binary and only takes two values (0 or 1), "black" takes values between 0.32 and 396.9.
+
+
+```{r}
+library(corrplot)
+cor_matrix <- cor(Boston)
+corrplot(cor_matrix)
+```
+
+Strong positive correlation between full-value property-tax rate per $10,000 (tax) and index of accessibility to radial highways (rad).
+
+Strong negative correlation between distances to five Boston employment centres (dis) and proportion of owner-occupied units built prior to 1940 (age), between distances to five Boston employment centres (dis) and nitrogen oxides concentration (nox), between distances to five Boston employment centres (dis) and proportion of non-retail business acres per town (indus), and between median value of owner-occupied homes (medv) and lower status of the population (lstat).
+
+```{r}
+par(mfrow=c(3,2))
+plot(Boston$tax,Boston$rad)
+plot(Boston$dis,Boston$age)
+plot(Boston$dis,Boston$nox)
+plot(Boston$dis,Boston$indus)
+plot(Boston$medv,Boston$lstat)
+```
+
+Scatter plots of the strongest correlations.
+
+**4 Standardize the dataset**
+
+```{r}
+boston_scaled <- scale(Boston)
+boston_scaled <- as.data.frame(boston_scaled)
+summary(boston_scaled)
+
+```
+
+
+All variables have mean 0.
+
+```{r}
+# create a quantile vector of crim
+bins <- quantile(boston_scaled$crim)
+
+# create a categorical variable 'crime'
+crime <- cut(boston_scaled$crim, breaks = bins, include.lowest = TRUE,label=c("low","med_low","med_high","high"))
+
+# remove original crim from the dataset
+boston_scaled <- dplyr::select(boston_scaled, -crim)
+
+# add the new categorical value to scaled data
+boston_scaled <- data.frame(boston_scaled, crime)
+
+# number of rows in the Boston dataset 
+n <- nrow(boston_scaled)
+
+# choose randomly 80% of the rows
+ind <- sample(n,  size = n * 0.8)
+
+# create train set
+train <- boston_scaled[ind,]
+
+# create test set 
+test <- boston_scaled[-ind,]
+```
+
+**5 Linear discriminant analysis**
+
+```{r}
+lda.fit <- lda(crime ~ ., data = train)
+lda.fit
+```
+
+LD1 explains 95% of the between group variance. 
+
+```{r}
+# target classes as numeric (for plotting purposes)
+classes <- as.numeric(train$crime)
+
+# the function for lda biplot arrows
+lda.arrows <- function(x, myscale = 1, arrow_heads = 0.1, color = "red", tex = 0.75, choices = c(1,2)){
+heads <- coef(x)
+  arrows(x0 = 0, y0 = 0, 
+x1 = myscale * heads[,choices[1]], 
+ y1 = myscale * heads[,choices[2]], col=color, length = arrow_heads)
+  text(myscale * heads[,choices], labels = row.names(heads),   cex = tex, col=color, pos=3)
+}
+
+
+plot(lda.fit, dimen = 2, col = classes, pch = classes)
+lda.arrows(lda.fit, myscale = 1)
+```
+
+The class "high" is a distinct class, whereas there is some overlapping for the rest of the classes. Variables "rad", "zn", and "nox" affect the classification the most. 
+
+**6 Predict classes with the LDA model on the test data**
+
+```{r}
+# save the correct classes from test data
+correct_classes <- test$crime
+
+# remove the crime variable from test data
+test <- dplyr::select(test, -crime)
+
+# predict classes with test data
+lda.pred <- predict(lda.fit, newdata = test)
+
+# cross tabulate the results
+table(correct = correct_classes, predicted = lda.pred$class)
+```
+
+The model correctly predicted all high values. The model mispredicted some of the low, med_low, and med_high values. 
+
+**7 K-means**
+
+```{r}
+data("Boston")
+boston_scaled <- scale(Boston)
+boston_scaled <- as.data.frame(boston_scaled)
+
+# euclidean distance matrix
+dist_eu <- dist(boston_scaled)
+summary(dist_eu)
+
+set.seed(123)
+
+# determine the number of clusters
+k_max <- 10
+
+# calculate the total within sum of squares
+twcss <- sapply(1:k_max, function(k){kmeans(boston_scaled, k)$tot.withinss})
+
+# visualize the results
+qplot(x = 1:k_max, y = twcss, geom = 'line')
+```
+
+The optimal number of clusters is around 3.
+
+```{r}
+# k-means clustering
+km <-kmeans(boston_scaled, centers = 3)
+
+# plot the Boston dataset with clusters
+pairs(boston_scaled, col = km$cluster)
+
+```
+
+
