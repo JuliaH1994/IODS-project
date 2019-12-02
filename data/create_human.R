@@ -1,6 +1,7 @@
 # Julia Hellstrand
 # 25.11.2019
 # This script includes the Data wrangling task to Exercise 4.
+# Link to the original data source: http://s3.amazonaws.com/assets.datacamp.com/production/course_2218/datasets/human1.txt
 
 # Read the “Human development” data set
 hd <- read.csv("http://s3.amazonaws.com/assets.datacamp.com/production/course_2218/datasets/human_development.csv", stringsAsFactors = F)
@@ -52,4 +53,56 @@ str(human)
 setwd("Z:\\IODS\\IODS\\data")
 
 # Save the dataset in the data folder
-write.csv(human, file="human.csv")
+write.csv(human, file = "human.csv", eol = "\r", na = "NA", row.names = FALSE)
+
+# Load the data
+human <- read.csv("human.csv", header = TRUE)
+
+
+# The structure and the dimensions of the data
+str(human)
+dim(human)
+
+# The data set includes 195 observations of 19 variables. It combines several indicators from most 
+# countries in the world. The data set includes information on health and knowledge and empowerment.
+
+# Transform the Gross National Income (GNIpC) variable to numeric
+# access the stringr and the dplyr package
+library(stringr)
+library(dplyr)
+
+# Mutate the human data
+human <- mutate(human, GNIpC = str_replace(human$GNIpC, pattern=",", replace ="") %>% as.numeric)
+
+# Exclude unneeded variables
+# Columns to keep
+keep <- c("Country", "SE_fm_ratio", "LFPR_fm_ratio", "EYoE", "LEaB", "GNIpC", "MMR", "ABR", "PRP")
+
+# select the 'keep' columns
+human <- select(human, one_of(keep))
+
+# Remove all rows with missing values
+human <- filter(human, complete.cases(human))
+
+# Remove the observations which relate to regions instead of countries.
+# define the last indice we want to keep
+last <- nrow(human) - 7
+
+# choose everything until the last 7 observations
+human <- human[1:last, ]
+
+# Define the row names of the data by the country names and remove the country name column from 
+# the data.
+rownames(human) <- human$Country
+
+# remove the Country variable
+human <- select(human, -Country)
+
+str(human)
+# 155 obs. of 8 variables
+
+# Save the human data in your data folder including the row names.
+write.csv(human, file = "human.csv", eol = "\r", na = "NA", row.names = FALSE)
+
+
+        

@@ -1,0 +1,158 @@
+# Chapter 5: Dimensionality reduction techniques
+
+In this chapter, we learn the basics of two data science based ways of reducing the dimensions. The key method is principal component analysis (PCA), which reduces any number of measured (continuous) and correlated variables into a few uncorrelated components that collect together as much variance as possible from the original variables. Multiple correspondence analysis (MCA) and other variations of CA bring us similar possibilities in the world of discrete variables, even nominal scale (classified) variables, by finding a suitable transformation into continuous scales and then reducing the dimensions quite analogously with the PCA. 
+
+```{r}
+# Load the data
+human <- read.csv("Z:\\IODS\\IODS\\data\\human.csv")
+```
+
+**1 Graphical overview of the data**
+
+```{r}
+library(dplyr)
+summary(human)
+```
+
+SE_fm_ratio = the ratio of Female and Male populations with secondary education
+
+LFPR_fm_ratio = the ratio of labour force participation of females and males 
+
+EYoE = Expected Years of Education 
+
+LEaB = Life Expectancy at Birth 
+
+GNIpC = Gross National Income GNI per Capita
+
+MMR = Maternal Mortality Ratio 
+
+ABR = Adolescent Birth Rate 
+
+PRP = Percent Representation in Parliament 
+
+```{r}
+library(GGally)
+ggpairs(human)
+```
+
+Expected years of education is the variable that is closest to normally distributed, as most countries are located around the mean value of 13.18 years. Life expectancy at birth is clearly skewed to the right with most countries taking values around 75 years. On the other hand, Gross national income, Maternal mortality ratio and Adolescent birth rate are skewed to the left, with most countries taking low values on these variables. Gross national income has however the largest variation, as it takes values from 581 to 123124.
+
+The strongest positive correlation is found between Life expectany at birth and Expected years of education (0.789) and between Adolescent birth rate and Maternal mortality ratio (0.759). Countries with high life expectancy at birth also tend to have high expected years of education. The strongest negative correlation is found between Maternal mortality ratio and Life expectancy at birth (-0.857). The weakest correlation is found between Gross national income and the ratio of labour force participation of females and males (-0.022).
+
+**2 Principal component analysis (PCA)**
+
+```{r}
+# perform principal component analysis (with the SVD method)
+pca_human <- prcomp(human)
+s <- summary(pca_human)
+
+# the percentages of variance 
+pca_pr <- round(100*s$importance[2, ], digits = 1)
+pca_pr
+```
+
+PC1 captures all of the variability in the data.
+
+```{r}
+# create object pc_lab to be used as axis labels
+pc_lab <- paste0(names(pca_pr), " (", pca_pr, "%)")
+
+# draw a biplot
+biplot(pca_human, cex = c(0.8, 1), col = c("grey40", "deeppink2"), xlab = pc_lab[1], ylab = pc_lab[2])
+```
+
+In the non standardized data, Gross National Income has much larger variance than the rest of the variables. PCA assumes that variables with larger variance are more important than variables with smaller variance. Therefore, the long arrow of Gross National Income dominates the figure, and the rest of the arrows are of length zero. PC1 simply captures the variability of the variable with largest variance, Gross National Income, and countries with low values on this variable are to the right side of the plot (most countries) and countries with high values are to the left side of the plot. 
+
+**3 Principal component analysis (PCA), standardized data**
+
+```{r}
+# standardize the variables
+human_std <- scale(human)
+
+# perform principal component analysis (with the SVD method)
+pca_human_std <- prcomp(human_std)
+s_std <- summary(pca_human_std)
+
+# the percentages of variance 
+pca_pr_std <- round(100*s_std$importance[2, ], digits = 1)
+pca_pr_std
+```
+
+Now PC1 captures 53.6 percent of the variability in the data and PC2 16.2 percent. Using these two components, we fail to explain ~30 percent of the variability in the data.
+
+```{r}
+# create object pc_lab to be used as axis labels
+pc_lab_std <- paste0(names(pca_pr_std), " (", pca_pr_std, "%)")
+
+# draw a biplot
+biplot(pca_human_std, cex = c(0.8, 1), col = c("grey40", "deeppink2"), xlab = pc_lab_std[1], ylab = pc_lab_std[2])
+
+```
+
+The data set is now standardized, meaning that the variance is 1 for all variables. All arrows are therefore of similar length, and none of them dominate the figure like in the non standardized case. 
+
+
+The small angle between Maternal mortality ratio and Adolescent birth rate shows the strong positive correlation between them. Expected years of education, Life expectancy at birth and Gross National Income are positivley correlated with each other, but negatively correlated with Maternal mortality ratio and Adolescent birth rate (due to the wide angle between them). Percent Representation in Parliament and the ratio of labour force participation of females and males are positivley correlated with each other, but these are not correlated with the feature that PC1 represents (due to orthogonality between them).
+
+**4 Personal interpretations**
+
+PC1 captures the overall health and development in a country. To the left is "healthy" countries with high life expectancy and low maternal mortality and to he right is "unhealthy" countries with high frequency of teenage births and low expected years of education. 
+
+PC2 captures the degree of gender equality in a country, where gender equality is measured by the ratio of labour force participation of females and males and by Percent Representation in Parliament.
+
+As we can see from the figure, Nordic and Western European countries are in the left top of the figure and ranks high in both health and equality. Oppositely, in the rigth bottom with bad health and low gender equality is for example Niger. 
+
+
+**5 The tea dataset**
+
+I decided to limit the data set right from the start. The new data set "tea_time" consists of 9 variables and 300 observations. 
+
+```{r}
+library(FactoMineR)
+library(tidyr)
+library(ggplot2)
+data("tea")
+
+# column names to keep in the dataset
+keep_columns <- c("Tea", "work", "pub","How", "sex", "SPC", "breakfast", "relaxing","slimming")
+
+# select the 'keep_columns' to create a new dataset
+tea_time <- dplyr::select(tea, one_of(keep_columns))
+
+# look at the summaries and structure of the data
+summary(tea_time)
+str(tea_time)
+
+# visualize the dataset
+gather(tea_time) %>% ggplot(aes(value)) + facet_wrap("key", scales = "free") + geom_bar() + theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 8))
+```
+
+Most of the variables have two categories, e.g. work/not work, pub/not pub, breakfast/ not breakfast, relaxing/no relaxing, slimming/no slimming, female/male. The variable "Tea" has three categories: "black", "Earl Grey", and "green", "How" has four categories, and "SPC" has 7 categories.
+
+There are more females and males in the dataset, and most participants are either a student, a non-worker, or an employee.
+Most participants drink Earl Grey, they drink it withouht milk/lemon or other, and almost half of them drink tea at breakfast. They do not drink tea at the pub or at work. Many participants find tea relaxing, but very few find it slimming.
+ 
+
+```{r}
+# multiple correspondence analysis
+mca <- MCA(tea_time, graph = FALSE)
+
+# summary of the model
+summary(mca)
+```
+
+The first two dimensions explain only 18.6 percent of the variability in the data. Using only these two dimensions, quite a lot information "get lost".
+
+```{r}
+# visualize MCA
+plot(mca, invisible=c("ind"), habillage = "quali")
+```
+
+Categories close to each other are more similar than categories with a large distance.
+
+```{r}
+# variable biplot
+plot(mca, invisible=c("var"))
+```
+
+In the right top of the plot, we see seniors who prefer to drink their tea with milk or other. In the left top, we see employees who prefer Earl Grey with lemon. 
