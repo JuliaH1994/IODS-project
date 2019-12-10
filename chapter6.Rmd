@@ -50,7 +50,7 @@ ggplot(RATSL, aes(x = Time, y = Weight, linetype = ID)) +
 
 ```
 
-Wieght seems to be increasing in all diet groups, but we are interested wether one diet seems to be more efficient than the other one.
+Weight seems to be increasing in all diet groups, but we are interested wether one diet seems to be more efficient than the other one.
 
 Before further analyses, we plot the standardised Weight. We do this to get rid of the fact that rats who have higher weight at the beginning tend to have higher weight throughout the study.
 
@@ -164,9 +164,7 @@ Remember: The summary measure approach provides a useful first step in making in
 
 
 
-
-
-**Analysing the BPRS data set** (NOT YET COMPLETE)
+**Analysing the BPRS data set** 
 
 "40 male subjects were
 randomly assigned to one of two treatment groups and each subject was rated
@@ -195,247 +193,94 @@ str(BPRSL)
 
 Note: the number of observations (bprs) is the same in both forms. In the long form, all measurement points are represented by only own variable, whereas in the wide from, all measurement points have their own variable.
 
-Next, take a look at the data. We plot the weakly measurement points for each male subject distinguished by treatment group.
-
-```{r}
-# Access the packages dplyr,tidyr and ggplot2
-library(dplyr)
-library(tidyr)
-library(ggplot2)
-
-# Draw the plot
-ggplot(BPRSL, aes(x = week, y = bprs, linetype = subject)) +
-  geom_line() +
-  scale_linetype_manual(values = rep(1:10, times=4)) +
-   facet_grid(. ~ treatment, labeller = label_both) +
-   theme(legend.position = "none") + 
-   scale_y_continuous(limits = c(min(BPRSL$bprs), max(BPRSL$bprs)))
-
-```
-
-The BPRS score seems to be decreasing in both treatment groups, but we are interested wether one treatment seems to be more efficient than the other one.
-
-Before further analyses, we plot the standardised bprs. We do this to get rid of the fact that men who have higher BPRS values at the beginning tend to have higher values throughout the study.
-
-```{r}
-# Standardise the variable bprs
-BPRSL <- BPRSL %>%
-  group_by(week) %>%
-  mutate(stdbprs = (bprs - mean(bprs))/sd(bprs) ) %>%
-  ungroup()
-
-# Plot again with the standardised bprs
-ggplot(BPRSL, aes(x = week, y = stdbprs, linetype = subject)) +
-  geom_line() +
-  scale_linetype_manual(values = rep(1:10, times=4)) +
-  facet_grid(. ~ treatment, labeller = label_both) +
-  scale_y_continuous(name = "standardized bprs")
-```
-
-Next, we produce graphs showing average (mean) profiles for each treatment group along with some indication of the variation of the observations at each time point.
-
-```{r}
-# Create the summary data BPRSS with the mean and standard error of the variable bprs
-# Number of weeks, baseline (week 0) included
-n <- BPRSL$week %>% unique() %>% length()
-
-# Summary data with mean and standard error of bprs by treatment and week
-BPRSS <- BPRSL %>%
-  group_by(treatment, week) %>%
-  summarise( mean = mean(bprs), se = (sd(bprs)/sqrt(n)) ) %>%
-  ungroup()
-
-
-# Plot the mean profiles
-ggplot(BPRSS, aes(x = week, y = mean, linetype = treatment, shape = treatment)) +
-  geom_line() +
-  scale_linetype_manual(values = c(1,2)) +
-  geom_point(size=3) +
-  scale_shape_manual(values = c(1,2)) +
-  geom_errorbar(aes(ymin=mean-se, ymax=mean+se, linetype="1"), width=0.3) +
-  theme(legend.position = c(0.8,0.8)) +
-  scale_y_continuous(name = "mean(bprs) +/- se(bprs)")
-```
-
-The confidence intervals for the profiles for each treatment group seem to overlap, which indicate that there is little or no difference between the groups.
-
-Before modeling the data, we need to check for and remove outliers.
-
-```{r}
-# Create a summary data by treatment and subject with mean as the summary variable (ignoring baseline week 0).
-BPRSL8S <- BPRSL %>%
-  filter(week > 0) %>%
-  group_by(treatment, subject) %>%
-  summarise( mean=mean(bprs) ) %>%
-  ungroup()
-
-
-# Draw a boxplot of the mean versus treatment
-ggplot(BPRSL8S, aes(x = treatment, y = mean)) +
-  geom_boxplot() +
-  stat_summary(fun.y = "mean", geom = "point", shape=23, size=4, fill = "white") +
-  scale_y_continuous(name = "mean(bprs), weeks 1-8")
-
-```
-
-In treatment group 2, there is one outlier (BPRSL8S ~ 72). We remove this observation.
-
-```{r}
-BPRSL8S1 <- BPRSL8S %>%
-  filter(mean < 60)
-
-```
-
-Finally, we apply a t-test to assess any difference between the treatment groups, and also calculate a confidence interval for this difference. 
-
-```{r}
-# Perform a two-sample t-test and observe the differences as seen in in the boxplots of the previous exercise
-t.test(mean ~ treatment, data = BPRSL8S1, var.equal = TRUE)
-```
-
-The t-test confirms the lack of any evidence for a group difference. Also the 95% confidence interval is wide and includes the zero, allowing for similar conclusions to be made.
-
-Fit a linear model that conditions on the baseline value.
-
-```{r}
-# Add the baseline from the original data as a new variable to the summary data
-BPRSL8S2 <- BPRSL8S %>%
-  mutate(baseline = BPRS$week0)
-
-# Fit the linear model with mean as the target and baseline + treatment as the response from the BPRSL8S1 
-fit <- lm(mean ~ baseline + treatment, data = BPRSL8S2)
-
-# Compute the analysis of variance table for the fitted model with anova() 
-anova(fit)
-```
-
-Baseline BPRS is strongly related to the BPRS values taken after treatment has begun (p-value: 3.077e-06), but there is still no evidence of a treatment difference even after conditioning on the baseline value.
-
-Remember: The summary measure approach provides a useful first step in making inferences about the data, but a more complete and a more appropriate analysis will involve fitting a suitable model to the data and estimating parameters that link the explanatory variables of interest to the repeated measures of the response variable.
-
-
-**Analysing the RATS data set** (OLD, DO NOT READ THIS)
-
-"A nutrition study conducted in three groups of rats
-(Crowder and Hand, 1990). The three groups were put on different diets, and
-each animal’s body weight (grams) was recorded repeatedly (approximately
-weekly, except in week seven when two recordings were taken) over a 9-week
-period. The question of most interest is whether the growth profiles of the
-three groups differ."
-https://mooc.helsinki.fi/pluginfile.php/78192/course/section/3817/MABS4IODS.pdf
-
-In more detail, we want to study the diffecences between the variable of interest, that is the weight of the individual rats, and the groups as well as the change of the weight in time.
-
-```{r}
-# Load the data set (wide form)
-RATS <- read.csv("Z:\\IODS\\IODS\\data\\RATS.csv")
-
-# Look at the data set RATS
-RATS
-
-# Load the data set (long form)
-RATSL <- read.csv("Z:\\IODS\\IODS\\data\\RATSL.csv")
-
-# Factor variables ID and Group
-RATSL$ID <- factor(RATSL$ID)
-RATSL$Group <- factor(RATSL$Group)
-
-# Look at the structure of the data set BPRSL
-str(RATSL)
-```
-
 To begin, we will plot the data, identifying the observations in each group but ignoring the longitudinal nature of the data.
 
 ```{r}
-ggplot(RATSL, aes(x = Time, y = Weight, group = ID)) +
-  geom_line(aes(linetype = Group)) + scale_x_continuous(name = "Time (days)", breaks = seq(0, 60, 10)) + scale_y_continuous(name = "Weight (grams)") + theme(legend.position = "top")
+ggplot(BPRSL, aes(x = week, y = bprs, linetype = subject)) +
+  geom_line(aes(color = treatment)) + scale_x_continuous(name = "Weeks") + scale_y_continuous(name = "bprs") + theme(legend.position = "top")
 ```
 
-The rats in Group 1 have much higher weight than the rats in the other two groups.
+The BPRS score seems to be decreasing in both treatment groups, but it does not seem to be a difference between the groups.
 
-Next, we will fit a multiple linear regression model with weight as response and Time and Group as explanatory variables. Note that we still ignore the repeated-measures structure of the data.
+Next, we will fit a multiple linear regression model with bprs as response and week and treatment as explanatory variables. Note that we still ignore the repeated-measures structure of the data.
 
 ```{r}
 # create a regression model RATS_reg
-RATS_reg <- lm(Weight ~ Time + Group, data=RATSL)
+BPRS_reg <- lm(bprs ~ week + treatment, data=BPRSL)
 
 # print out a summary of the model
-summary(RATS_reg)
+summary(BPRS_reg)
 ```
 
-Time is significant, meaning that the rats gain weight with time for all groups.
-Group 2 and group 3 differ greatly from group 1 conditional on time. (Estimate 221 and 262 vs 0)
+Week is significant, meaning that the bprs decreaes with time for both groups.
+However, there seems to be no significant difference between the groups.
 
-The previous model assumes independence of the repeated measures of weight, and this assumption is highly unlikely. So, now we will move on to consider both some more appropriate graphics and appropriate models.
+The previous model assumes independence of the repeated measures of bprs, and this assumption is highly unlikely. So, now we will move on to consider both some more appropriate graphics and appropriate models.
 
-We will first fit the random intercept model for the same two explanatory variables: Time and Group. Fitting a random intercept model allows the linear regression fit for each rat to differ in intercept from other rats.
+We will first fit the random intercept model for the same two explanatory variables: week and treatment. Fitting a random intercept model allows the linear regression fit for each subject to differ in intercept from other subjects.
 
 ```{r}
 # access library lme4
 library(lme4)
 
 # Fit the random intercept model with the rat ID as the random effect
-RATS_ref <- lmer(Weight ~ Time + Group + (1 | ID), data = RATSL, REML = FALSE)
+BPRS_ref <- lmer(bprs ~ week + treatment + (1 | subject), data = BPRSL, REML = FALSE)
 
 # Print the summary of the model
-summary(RATS_ref)
+summary(BPRS_ref)
 ```
 
-The variability (standard deviation) of the rat ID is quite large, indicating the considerable variation in the intercepts of the regression fits of the individual rat growth profiles. 
+The variability (standard deviation) of subject is quite small, indicating small variation in the intercepts of the regression fits of the individual bprs profiles. 
 
-The estimated regression parameters for time and the two dummy variables are very similar to those from the previous model, and all are highly significant again. However, the estimated standard error of time is
-much smaller. The reason for the smaller standard errors with the independence model is that the effective sample size for estimating these effects is less than the actual sample size because of the correlated nature of the data, and so the estimates for the independence model are unrealistically precise.
+The estimated regression parameters are very similar to those from the previous model. However, the estimated standard error of week is smaller. The reason for the smaller standard errors with the independence model is that the effective sample size for estimating these effects is less than the actual sample size because of the correlated nature of the data, and so the estimates for the independence model are unrealistically precise.
 
-Now we can move on to fit the random intercept and random slope model to the rat growth data. Fitting a random intercept and random slope model allows the linear regression fits for each individual to differ in intercept but also in slope. This way it is possible to account for the individual differences in the rats' growth profiles, but also the effect of time.
+Now we can move on to fit the random intercept and random slope model to the bprs data. Fitting a random intercept and random slope model allows the linear regression fits for each individual to differ in intercept but also in slope. This way it is possible to account for the individual differences in the bprs profiles, but also the effect of time.
 
 ```{r}
-# Fit the random intercept and slope model with Time and ID as the random effects
-RATS_ref1 <- lmer(Weight ~ Time + Group + (Time | ID), data = RATSL, REML = FALSE)
+# Fit the random intercept and slope model with week and subject as the random effects
+BPRS_ref1 <- lmer(bprs ~ week + treatment + (week | subject), data = BPRSL, REML = FALSE)
 
 # print a summary of the model
-summary(RATS_ref1)
+summary(BPRS_ref1)
 
 # Compute the analysis of variance tables of the models RATS_ref and RATS_ref1
-anova(RATS_ref1, RATS_ref)
+anova(BPRS_ref1, BPRS_ref)
 ```
 
-The very small p-value indicate better fit against the comparison model.
+The small p-value indicate better fit against the comparison model.
 
-Finally, we can fit a random intercept and slope model that allows for a group × time interaction.
+Finally, we can fit a random intercept and slope model that allows for a treatment × week interaction.
 
 ```{r}
 # create a random intercept and random slope model with the interaction
-RATS_ref2 <- lmer(Weight ~ Time + Group + Time*Group + (Time | ID), data = RATSL, REML = FALSE)
+BPRS_ref2 <- lmer(bprs ~ week + treatment + week*treatment + (week | subject), data = BPRSL, REML = FALSE)
 
 # print a summary of the model
-summary(RATS_ref2)
+summary(BPRS_ref2)
 
 # Compute the analysis of variance tables of the models RATS_ref2 and RATS_ref1
-anova(RATS_ref2, RATS_ref1)
+anova(BPRS_ref2, BPRS_ref1)
 ```
 
-The interaction model provides a better fit for the rat growth data.
+The interaction model hardly provide any better fit for the bprs data. (P-value not "very small")
 
 Finally, we draw the fitted values of the model.
 
 ```{r}
-# draw the plot of RATSL with the observed Weight value
-ggplot(RATSL, aes(x = Time, y = Weight, group = ID)) +
-  geom_line(aes(linetype = Group)) +
-  scale_x_continuous(name = "Time (days)", breaks = seq(0, 60, 20)) +
-  scale_y_continuous(name = "Observed weight (grams)") +
-  theme(legend.position = "top")
+ggplot(BPRSL, aes(x = week, y = bprs, linetype = subject)) +
+  geom_line(aes(color = treatment)) + scale_x_continuous(name = "Weeks") + scale_y_continuous(name = "bprs") + theme(legend.position = "top")
 
 # Create a vector of the fitted values of the model using the function fitted()
-Fitted <- fitted(RATS_ref2)
+Fitted <- fitted(BPRS_ref2)
 
 # Create a new column fitted to RATSL
-RATSL <- mutate(RATSL, Fitted)
+BPRSL <- mutate(BPRSL, Fitted)
 
-# draw the plot of RATSL with the Fitted values of weight
-ggplot(RATSL, aes(x = Time, y = Fitted, group = ID)) +
-  geom_line(aes(linetype = Group)) +
-  scale_x_continuous(name = "Time (days)", breaks = seq(0, 60, 20)) +
-  scale_y_continuous(name = "Fitted weight (grams)") +
+# draw the plot of BPRSL with the Fitted values of bprs
+ggplot(BPRSL, aes(x = week, y = Fitted, linetype = subject)) +
+  geom_line(aes(color = treatment)) +
+  scale_x_continuous(name = "Week") +
+  scale_y_continuous(name = "Fitted (bprs)") +
   theme(legend.position = "top")
 ```
+
